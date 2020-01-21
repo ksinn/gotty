@@ -5,10 +5,10 @@ services:
       context: .
       dockerfile: deploy/Dockerfile
     restart: always
-#    volumes:
+    volumes:
 #      - ./gotty:/webtty/gotty
 #      - ./resources/index.html:/webtty/index.html
-#      - ../home:/home/student
+      - ../home:/home/student
     command: "/webtty/gotty -w --index /webtty/index.html  --ws-origin \".*\" bash"
     ports:
       - "8090:8080"
