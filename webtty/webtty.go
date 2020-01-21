@@ -2,11 +2,12 @@ package webtty
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"sync"
-
+	//"log"
 	"github.com/pkg/errors"
+
+	"github.com/ksinn/gotty/file"
 )
 
 // WebTTY bridges a PTY slave and its PTY master.
@@ -58,8 +59,8 @@ func New(masterConn Master, slave Slave, options ...Option) (*WebTTY, error) {
 // after the context is canceled. Closing them is caller's
 // responsibility.
 // If the connection to one end gets closed, returns ErrSlaveClosed or ErrMasterClosed.
-func (wt *WebTTY) Run(ctx context.Context) error {
-	err := wt.sendInitializeMessage()
+func (wt *WebTTY) Run(ctx context.Context) (err error) {
+	err = wt.sendInitializeMessage()
 	if err != nil {
 		return errors.Wrapf(err, "failed to send initializing message")
 	}
@@ -110,32 +111,43 @@ func (wt *WebTTY) Run(ctx context.Context) error {
 }
 
 func (wt *WebTTY) sendInitializeMessage() error {
-	err := wt.masterWrite(append([]byte{SetWindowTitle}, wt.windowTitle...))
+
+	dirContent, err := file.GetDirContent()
+	if err != nil {
+		return errors.Wrapf(err, "failed to send dir content")
+	}
+
+	jsonDirContent, err := json.Marshal(dirContent)
+	if err != nil {
+		return errors.Wrapf(err, "failed to send dir content")
+	}
+
+	err = wt.masterWrite(append([]byte{ListOfFile}, jsonDirContent...))
 	if err != nil {
 		return errors.Wrapf(err, "failed to send window title")
 	}
 
-	if wt.reconnect > 0 {
-		reconnect, _ := json.Marshal(wt.reconnect)
-		err := wt.masterWrite(append([]byte{SetReconnect}, reconnect...))
-		if err != nil {
-			return errors.Wrapf(err, "failed to set reconnect")
-		}
-	}
-
-	if wt.masterPrefs != nil {
-		err := wt.masterWrite(append([]byte{SetPreferences}, wt.masterPrefs...))
-		if err != nil {
-			return errors.Wrapf(err, "failed to set preferences")
-		}
-	}
+	//if wt.reconnect > 0 {
+	//	reconnect, _ := json.Marshal(wt.reconnect)
+	//	err := wt.masterWrite(append([]byte{SetReconnect}, reconnect...))
+	//	if err != nil {
+	//		return errors.Wrapf(err, "failed to set reconnect")
+	//	}
+	//}
+	//
+	//if wt.masterPrefs != nil {
+	//	err := wt.masterWrite(append([]byte{SetPreferences}, wt.masterPrefs...))
+	//	if err != nil {
+	//		return errors.Wrapf(err, "failed to set preferences")
+	//	}
+	//}
 
 	return nil
 }
 
 func (wt *WebTTY) handleSlaveReadEvent(data []byte) error {
-	safeMessage := base64.StdEncoding.EncodeToString(data)
-	err := wt.masterWrite(append([]byte{Output}, []byte(safeMessage)...))
+
+	err := wt.masterWrite(append([]byte{Output}, data...))
 	if err != nil {
 		return errors.Wrapf(err, "failed to send message to master")
 	}
@@ -144,6 +156,7 @@ func (wt *WebTTY) handleSlaveReadEvent(data []byte) error {
 }
 
 func (wt *WebTTY) masterWrite(data []byte) error {
+
 	wt.writeMutex.Lock()
 	defer wt.writeMutex.Unlock()
 
@@ -156,9 +169,28 @@ func (wt *WebTTY) masterWrite(data []byte) error {
 }
 
 func (wt *WebTTY) handleMasterReadEvent(data []byte) error {
+
 	if len(data) == 0 {
 		return errors.New("unexpected zero length read from master")
 	}
+
+	//_, err := wt.slave.Write(data[1:])
+	//if err != nil {
+	//	return errors.Wrapf(err, "failed to write received data to slave")
+	//}
+
+	if !wt.permitWrite {
+		return nil
+	}
+
+
+	//Отправляет весь вход к терменалу
+	//_, err := wt.slave.Write(data)
+	//if err != nil {
+	//	return errors.Wrapf(err, "failed to write received data to slave")
+	//}
+	//
+	//return nil
 
 	switch data[0] {
 	case Input:
@@ -206,6 +238,38 @@ func (wt *WebTTY) handleMasterReadEvent(data []byte) error {
 		}
 
 		wt.slave.ResizeTerminal(columns, rows)
+
+	case WriteFile:
+		if len(data) <= 1 {
+			return errors.New("received malformed remote command for write file: empty payload")
+		}
+
+		var args argWriteFie
+		err := json.Unmarshal(data[1:], &args)
+		if err != nil {
+			return errors.Wrapf(err, "received malformed data for write file")
+		}
+
+		path := args.Path
+		content := args.Content
+
+		err = file.WriteFile(path, content)
+		if err != nil {
+			return errors.Wrapf(err, "error with writing file")
+		}
+
+	case RemoveFile:
+		if len(data) <= 1 {
+			return errors.New("received malformed remote command for remove file: empty payload")
+		}
+
+		path := string(data[1:])
+
+		err := file.RemoveFile(path)
+		if err != nil {
+			return errors.Wrapf(err, "error with removing file")
+		}
+
 	default:
 		return errors.Errorf("unknown message type `%c`", data[0])
 	}
@@ -217,3 +281,9 @@ type argResizeTerminal struct {
 	Columns float64
 	Rows    float64
 }
+
+type argWriteFie struct {
+	Path string
+	Content    []byte
+}
+

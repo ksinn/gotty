@@ -3,7 +3,7 @@ package server
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	//"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -13,7 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 
-	"github.com/yudai/gotty/webtty"
+	"github.com/ksinn/gotty/webtty"
 )
 
 func (server *Server) generateHandleWS(ctx context.Context, cancel context.CancelFunc, counter *counter) http.HandlerFunc {
@@ -88,27 +88,27 @@ func (server *Server) generateHandleWS(ctx context.Context, cancel context.Cance
 }
 
 func (server *Server) processWSConn(ctx context.Context, conn *websocket.Conn) error {
-	typ, initLine, err := conn.ReadMessage()
-	if err != nil {
-		return errors.Wrapf(err, "failed to authenticate websocket connection")
-	}
-	if typ != websocket.TextMessage {
-		return errors.New("failed to authenticate websocket connection: invalid message type")
-	}
-
-	var init InitMessage
-	err = json.Unmarshal(initLine, &init)
-	if err != nil {
-		return errors.Wrapf(err, "failed to authenticate websocket connection")
-	}
-	if init.AuthToken != server.options.Credential {
-		return errors.New("failed to authenticate websocket connection")
-	}
+	//typ, initLine, err := conn.ReadMessage()
+	//if err != nil {
+	//	return errors.Wrapf(err, "failed to authenticate websocket connection")
+	//}
+	//if typ != websocket.TextMessage {
+	//	return errors.New("failed to authenticate websocket connection: invalid message type")
+	//}
+	//
+	//var init InitMessage
+	//err = json.Unmarshal(initLine, &init)
+	//if err != nil {
+	//	return errors.Wrapf(err, "failed to authenticate websocket connection")
+	//}
+	//if init.AuthToken != server.options.Credential {
+	//	return errors.New("failed to authenticate websocket connection")
+	//}
 
 	queryPath := "?"
-	if server.options.PermitArguments && init.Arguments != "" {
-		queryPath = init.Arguments
-	}
+	//if server.options.PermitArguments && init.Arguments != "" {
+	//	queryPath = init.Arguments
+	//}
 
 	query, err := url.Parse(queryPath)
 	if err != nil {

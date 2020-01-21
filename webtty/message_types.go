@@ -13,6 +13,8 @@ const (
 	Ping = '2'
 	// Notify that the browser size has been changed
 	ResizeTerminal = '3'
+	WriteFile = '4'
+	RemoveFile = '5'
 )
 
 const (
@@ -28,4 +30,5 @@ const (
 	SetPreferences = '4'
 	// Make terminal to reconnect
 	SetReconnect = '5'
+	ListOfFile = '6'
 )

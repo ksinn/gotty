@@ -1,7 +1,7 @@
 package server
 
 import (
-	"encoding/base64"
+	//"encoding/base64"
 	"log"
 	"net/http"
 	"strings"
@@ -27,25 +27,25 @@ func (server *Server) wrapBasicAuth(handler http.Handler, credential string) htt
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := strings.SplitN(r.Header.Get("Authorization"), " ", 2)
 
-		if len(token) != 2 || strings.ToLower(token[0]) != "basic" {
-			w.Header().Set("WWW-Authenticate", `Basic realm="GoTTY"`)
+		if len(token) != 2 || strings.ToLower(token[0]) != "bearer" {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="GoTTY"`)
 			http.Error(w, "Bad Request", http.StatusUnauthorized)
 			return
 		}
 
-		payload, err := base64.StdEncoding.DecodeString(token[1])
-		if err != nil {
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			return
-		}
+		//payload, err := base64.StdEncoding.DecodeString(token[1])
+		//if err != nil {
+		//	http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		//	return
+		//}
 
-		if credential != string(payload) {
-			w.Header().Set("WWW-Authenticate", `Basic realm="GoTTY"`)
+		if credential != token[1] {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="GoTTY"`)
 			http.Error(w, "authorization failed", http.StatusUnauthorized)
 			return
 		}
 
-		log.Printf("Basic Authentication Succeeded: %s", r.RemoteAddr)
+		log.Printf("Bearer Authentication Succeeded: %s", r.RemoteAddr)
 		handler.ServeHTTP(w, r)
 	})
 }
