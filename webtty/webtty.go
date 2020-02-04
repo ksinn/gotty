@@ -246,12 +246,13 @@ func (wt *WebTTY) handleMasterReadEvent(data []byte) error {
 
 		var args argWriteFie
 		err := json.Unmarshal(data[1:], &args)
+
 		if err != nil {
 			return errors.Wrapf(err, "received malformed data for write file")
 		}
 
 		path := args.Path
-		content := args.Content
+		content := []byte(args.Content)
 
 		err = file.WriteFile(path, content)
 		if err != nil {
@@ -284,6 +285,6 @@ type argResizeTerminal struct {
 
 type argWriteFie struct {
 	Path string
-	Content    []byte
+	Content    string
 }
 
